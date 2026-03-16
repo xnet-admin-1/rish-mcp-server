@@ -19,14 +19,9 @@ jobs:
         run: |
           VER="${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}"
           echo "version=$VER" >> $GITHUB_OUTPUT
-          echo "VERSION=$VER" >> $GITHUB_ENV
       
       - name: Build package
         run: |
-          mkdir -p pkg
-          # Copy main server to root for Operit compatibility
-          cp src/server_direct.py pkg/
-          # Also keep src/ as package
           mkdir -p pkg/src
           cp src/*.py pkg/src/
           cp requirements.txt pkg/
@@ -34,29 +29,10 @@ jobs:
           cp pyproject.toml pkg/
           cp README.md pkg/
           cp LICENSE pkg/
-          
-          cat > pkg/package.json <<'JSON'
-          {
-            "name": "rish-mcp-server",
-            "version": "${{ steps.ver.outputs.version }}",
-            "description": "MCP server for Android system access via Shizuku",
-            "author": "Josh Fordyce <admin@xnet.ngo>",
-            "organization": "XNet Inc. https://xnet.ngo",
-            "license": "GPL-3.0",
-            "main": "server_direct.py",
-            "entrypoint": "python3 server_direct.py"
-          }
-          JSON
-          
-          # Fix import in root-level server_direct.py
-          sed -i 's/^from mcp/from mcp/' pkg/server_direct.py
-          
+          cp package.json pkg/
           cd pkg && zip -r ../rish-mcp-server.zip . && cd ..
-          ls -lh rish-mcp-server.zip
-          unzip -l rish-mcp-server.zip
       
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: rish-mcp-server
           path: rish-mcp-server.zip
@@ -66,18 +42,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: rish-mcp-server.zip
-          body: |
-            ## Rish MCP Server ${{ steps.ver.outputs.version }}
-            
-            MCP server for Android system access via Shizuku.
-            
-            ### Credits
-            - **Organization:** XNet Inc. https://xnet.ngo
-            - **Author:** Josh Fordyce <admin@xnet.ngo>
-            - **License:** GPL-3.0
-            
-            ### Installation for Operit
-            Download `rish-mcp-server.zip` and import directly.
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -88,15 +53,6 @@ jobs:
           tag_name: latest
           name: Latest Build
           files: rish-mcp-server.zip
-          body: |
-            ## Latest Development Build
-            
-            Automatically built from main branch.
-            
-            ### Credits
-            - **Organization:** XNet Inc. https://xnet.ngo
-            - **Author:** Josh Fordyce <admin@xnet.ngo>
-            - **License:** GPL-3.0
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

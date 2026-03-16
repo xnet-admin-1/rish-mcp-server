@@ -1,0 +1,13 @@
+{
+  "name": "rish-mcp-server",
+  "version": "1.1.1",
+  "description": "MCP server for Android system access via Shizuku",
+  "author": "Josh Fordyce <admin@xnet.ngo>",
+  "organization": "XNet Inc. https://xnet.ngo",
+  "license": "GPL-3.0",
+  "main": "src/server_direct.py",
+  "entrypoint": "python3 -m src.server_direct",
+  "callable": "run",
+  "requirements": ["mcp>=1.0.0"],
+  "python_version": ">=3.10"
+}

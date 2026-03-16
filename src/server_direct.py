@@ -250,3 +250,11 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+def run():
+    """Synchronous entry point for package managers"""
+    import asyncio
+    asyncio.run(main())
+
+if __name__ == "__main__":
+    run()
