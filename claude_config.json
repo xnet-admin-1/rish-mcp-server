@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rish-shizuku": {
+      "command": "python3",
+      "args": ["/path/to/rish-mcp-server/src/server.py"],
+      "env": {
+        "RISH_APPLICATION_ID": "com.termux"
+      }
+    }
+  }
+}
