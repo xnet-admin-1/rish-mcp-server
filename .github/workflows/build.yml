@@ -1,0 +1,121 @@
+name: Build Operit Package
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Get version
+      id: version
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=$(git rev-parse --short HEAD)
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Build Operit Package
+      run: |
+        mkdir -p operit-package
+        cp -r src operit-package/
+        cp requirements.txt operit-package/
+        cp install.sh operit-package/
+        cp README.md operit-package/
+        
+        cat > operit-package/package.json << PKGJSON
+        {
+          "name": "rish-mcp-server",
+          "version": "${VERSION}",
+          "description": "MCP server for Android system access via Shizuku",
+          "author": "rish-mcp",
+          "license": "MIT",
+          "main": "src/server_direct.py",
+          "entrypoint": "python3 src/server_direct.py",
+          "tools": [
+            "shell",
+            "terminal",
+            "file_operations",
+            "system_info"
+          ],
+          "requirements": {
+            "python": ">=3.10",
+            "android": {
+              "shizuku": "required"
+            }
+          },
+          "install": "./install.sh",
+          "env": {
+            "PYTHONPATH": ".",
+            "ANDROID_MODE": "direct"
+          }
+        }
+        PKGJSON
+        
+        cat > operit-package/install.sh <<'INSTALL'
+#!/bin/bash
+set -e
+echo "Installing rish-mcp-server for Operit..."
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+fi
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+echo "Installation complete!"
+echo "To start: python3 src/server_direct.py"
+INSTALL
+        chmod +x operit-package/install.sh
+        
+        ZIP_NAME="rish-mcp-server-${VERSION}.zip"
+        zip -r "$ZIP_NAME" operit-package/
+        echo "Created: $ZIP_NAME"
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: operit-package-${{ steps.version.outputs.version }}
+        path: rish-mcp-server-*.zip
+        retention-days: 90
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: rish-mcp-server-*.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Package Index
+      run: |
+        cat > package-index.json <<INDEX
+        {
+          "name": "rish-mcp-server",
+          "repository": "https://github.com/xnet-admin-1/rish-mcp-server",
+          "latest_version": "${VERSION}",
+          "install_url": "https://github.com/xnet-admin-1/rish-mcp-server/releases/latest/download/rish-mcp-server-latest.zip"
+        }
+        INDEX
+    
+    - name: Upload Index
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-index
+        path: package-index.json
