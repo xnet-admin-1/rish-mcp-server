@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rish-mcp-server"
+version = "1.0.0"
+description = "MCP server for Android system access via Shizuku"
+readme = "README.md"
+license = {text = "GPL-3.0"}
+authors = [{name = "Josh Fordyce", email = "admin@xnet.ngo"}]
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.0.0"]
+
+[project.urls]
+Homepage = "https://xnet.ngo"
+Repository = "https://github.com/xnet-admin-1/rish-mcp-server"
