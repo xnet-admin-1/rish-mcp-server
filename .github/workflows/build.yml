@@ -2,10 +2,8 @@ name: Build Operit Package
 
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -15,107 +13,54 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    
     - name: Get version
-      id: version
+      id: ver
       run: |
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          VERSION=${GITHUB_REF#refs/tags/}
-        else
-          VERSION=$(git rev-parse --short HEAD)
-        fi
+        VERSION="${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}"
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "v=$VERSION" >> $GITHUB_OUTPUT
     
-    - name: Build Operit Package
+    - name: Build package
       run: |
-        mkdir -p operit-package
-        cp -r src operit-package/
-        cp requirements.txt operit-package/
-        cp install.sh operit-package/
-        cp README.md operit-package/
+        # Create clean package directory
+        PKG="rish-mcp-server-${{ env.VERSION }}"
+        mkdir -p "$PKG"
         
-        cat > operit-package/package.json << PKGJSON
-        {
-          "name": "rish-mcp-server",
-          "version": "${VERSION}",
-          "description": "MCP server for Android system access via Shizuku",
-          "author": "rish-mcp",
-          "license": "MIT",
-          "main": "src/server_direct.py",
-          "entrypoint": "python3 src/server_direct.py",
-          "tools": [
-            "shell",
-            "terminal",
-            "file_operations",
-            "system_info"
-          ],
-          "requirements": {
-            "python": ">=3.10",
-            "android": {
-              "shizuku": "required"
-            }
-          },
-          "install": "./install.sh",
-          "env": {
-            "PYTHONPATH": ".",
-            "ANDROID_MODE": "direct"
-          }
-        }
-        PKGJSON
+        # Copy all source files
+        cp -r src "$PKG/"
+        cp requirements.txt "$PKG/"
+        cp README.md "$PKG/"
         
-        cat > operit-package/install.sh <<'INSTALL'
-#!/bin/bash
-set -e
-echo "Installing rish-mcp-server for Operit..."
-if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
-fi
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-echo "Installation complete!"
-echo "To start: python3 src/server_direct.py"
-INSTALL
-        chmod +x operit-package/install.sh
+        # Create Operit-compatible package.json
+        cat > "$PKG/package.json" << 'EOF'
+{
+  "name": "rish-mcp-server",
+  "version": "${{ env.VERSION }}",
+  "description": "MCP server for Android via Shizuku",
+  "main": "src/server_direct.py",
+  "entrypoint": "python3 src/server_direct.py",
+  "install": "pip3 install -r requirements.txt"
+}
+EOF
         
-        ZIP_NAME="rish-mcp-server-${VERSION}.zip"
-        zip -r "$ZIP_NAME" operit-package/
-        echo "Created: $ZIP_NAME"
+        # Create the ZIP at root level (files directly in archive, no nested folder)
+        cd "$PKG"
+        zip -r "../$PKG.zip" .
+        cd ..
+        
+        ls -la "$PKG.zip"
+        unzip -l "$PKG.zip"
     
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: operit-package-${{ steps.version.outputs.version }}
-        path: rish-mcp-server-*.zip
-        retention-days: 90
-    
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Upload to release
       uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: rish-mcp-server-*.zip
-        generate_release_notes: true
+        files: "*.zip"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Create Package Index
-      run: |
-        cat > package-index.json <<INDEX
-        {
-          "name": "rish-mcp-server",
-          "repository": "https://github.com/xnet-admin-1/rish-mcp-server",
-          "latest_version": "${VERSION}",
-          "install_url": "https://github.com/xnet-admin-1/rish-mcp-server/releases/latest/download/rish-mcp-server-latest.zip"
-        }
-        INDEX
-    
-    - name: Upload Index
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: package-index
-        path: package-index.json
+        name: rish-mcp-server-${{ steps.ver.outputs.v }}
+        path: "*.zip"
