@@ -1,66 +1,31 @@
-name: Build Operit Package
+name: Build Package
 
 on:
   push:
     branches: [main, master]
-    tags: ['v*']
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Get version
-      id: ver
-      run: |
-        VERSION="${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}"
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "v=$VERSION" >> $GITHUB_OUTPUT
-    
-    - name: Build package
-      run: |
-        # Create clean package directory
-        PKG="rish-mcp-server-${{ env.VERSION }}"
-        mkdir -p "$PKG"
-        
-        # Copy all source files
-        cp -r src "$PKG/"
-        cp requirements.txt "$PKG/"
-        cp README.md "$PKG/"
-        
-        # Create Operit-compatible package.json
-        cat > "$PKG/package.json" << 'EOF'
-{
-  "name": "rish-mcp-server",
-  "version": "${{ env.VERSION }}",
-  "description": "MCP server for Android via Shizuku",
-  "main": "src/server_direct.py",
-  "entrypoint": "python3 src/server_direct.py",
-  "install": "pip3 install -r requirements.txt"
-}
-EOF
-        
-        # Create the ZIP at root level (files directly in archive, no nested folder)
-        cd "$PKG"
-        zip -r "../$PKG.zip" .
-        cd ..
-        
-        ls -la "$PKG.zip"
-        unzip -l "$PKG.zip"
-    
-    - name: Upload to release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: "*.zip"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: rish-mcp-server-${{ steps.ver.outputs.v }}
-        path: "*.zip"
+      - uses: actions/checkout@v4
+      
+      - name: Version
+        id: ver
+        run: |
+          VER='${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}'
+          echo "version=$VER" >> $GITHUB_OUTPUT
+      
+      - name: Build
+        run: |
+          mkdir -p pkg/src
+          cp src/*.py pkg/src/
+          cp requirements.txt pkg/
+          echo '{"name":"rish-mcp-server","version":"'${{ steps.ver.outputs.version }}'","main":"src/server_direct.py"}' > pkg/package.json
+          cd pkg && zip -r ../rish-mcp-server.zip . && cd ..
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: '*.zip'
