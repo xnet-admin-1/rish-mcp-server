@@ -23,13 +23,19 @@ jobs:
       
       - name: Build package
         run: |
+          mkdir -p pkg
+          # Copy main server to root for Operit compatibility
+          cp src/server_direct.py pkg/
+          # Also keep src/ as package
           mkdir -p pkg/src
           cp src/*.py pkg/src/
           cp requirements.txt pkg/
+          cp setup.py pkg/
+          cp pyproject.toml pkg/
           cp README.md pkg/
           cp LICENSE pkg/
           
-          cat > pkg/package.json <<JSON
+          cat > pkg/package.json <<'JSON'
           {
             "name": "rish-mcp-server",
             "version": "${{ steps.ver.outputs.version }}",
@@ -37,10 +43,13 @@ jobs:
             "author": "Josh Fordyce <admin@xnet.ngo>",
             "organization": "XNet Inc. https://xnet.ngo",
             "license": "GPL-3.0",
-            "main": "src/server_direct.py",
-            "entrypoint": "python3 src/server_direct.py"
+            "main": "server_direct.py",
+            "entrypoint": "python3 server_direct.py"
           }
           JSON
+          
+          # Fix import in root-level server_direct.py
+          sed -i 's/^from mcp/from mcp/' pkg/server_direct.py
           
           cd pkg && zip -r ../rish-mcp-server.zip . && cd ..
           ls -lh rish-mcp-server.zip
